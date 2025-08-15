@@ -1,0 +1,56 @@
+.env.example
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Data directories
+data/raw/
+data/processed/
+data/vector_db/
+
+# Model directories
+models/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Weights & Biases
+wandb/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Large files
+*.bin
+*.safetensors
+
+# API keys and secrets
+.env
+secrets.json
+
+# Cache
+.cache/
+__pycache__/

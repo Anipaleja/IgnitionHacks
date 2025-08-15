@@ -1,0 +1,37 @@
+# AI/ML Dependencies
+torch>=2.0.0
+transformers>=4.30.0
+sentence-transformers>=2.2.0
+datasets>=2.12.0
+accelerate>=0.20.0
+peft>=0.4.0
+bitsandbytes>=0.39.0
+
+# Vector Database and RAG
+chromadb>=0.4.0
+langchain>=0.0.200
+langchain-community>=0.0.20
+faiss-cpu>=1.7.4
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+scrapy>=2.9.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.65.0
+wandb>=0.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# API and Web
+fastapi>=0.100.0
+uvicorn>=0.22.0
+gradio>=3.35.0
+
+# Testing
+pytest>=7.3.0
+pytest-asyncio>=0.21.0
