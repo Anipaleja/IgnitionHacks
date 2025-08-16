@@ -37,25 +37,37 @@ class RAGCircuitGenerator:
         """Generate complete diagram.json from parts"""
         
         if self.model_trainer:
-            # Use RAG AI model
-            parts_text = ", ".join([f"{p['id']}: {p['type']}" for p in parts])
+            # Use Code Llama RAG AI model with enhanced prompt
+            parts_list = []
+            for p in parts:
+                parts_list.append(f"- {p['id']}: {p['type']} at position (top: {p.get('top', 0)}, left: {p.get('left', 0)})")
             
-            prompt = f"""Generate complete Wokwi circuit diagram JSON for: {parts_text}
+            parts_text = "\n".join(parts_list)
+            
+            prompt = f"""Create a complete Wokwi circuit diagram JSON for these components:
 
-Return exact JSON format:
+{parts_text}
+
+Requirements:
+1. Include the provided parts array exactly as given
+2. Generate proper electrical connections between components
+3. Use realistic wire colors (red=power, black=ground, other colors for signals)
+4. Include wire routing paths using format: ["v10", "h20", "*", "v-5"] for clean layout
+5. Follow standard electronic wiring conventions
+6. Ensure all components are properly connected and functional
+
+Return ONLY the complete JSON with this exact structure:
 {{
   "version": 1,
-  "author": "RAG AI Generator",
-  "editor": "wokwi", 
-  "parts": [existing parts array],
+  "author": "Code Llama Circuit Generator",
+  "editor": "wokwi",
+  "parts": [the exact parts array provided],
   "connections": [
-    ["source_pin", "target_pin", "color", ["wire_path"]],
+    ["source_pin", "target_pin", "wire_color", ["wire_routing_path"]],
     ...
   ],
   "dependencies": {{}}
-}}
-
-Generate all necessary connections based on standard wiring patterns."""
+}}"""
 
             response = self.model_trainer.generate_response(prompt)
             

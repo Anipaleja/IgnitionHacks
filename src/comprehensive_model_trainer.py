@@ -114,20 +114,31 @@ class ComprehensiveHardwareDataset(Dataset):
 class ComprehensiveHardwareModelTrainer:
     """Trainer for comprehensive hardware knowledge model"""
     
-    def __init__(self, model_name: str = "gpt2-medium"):
+    def __init__(self, model_name: str = None):
+        # Auto-select best model if none specified
+        if model_name is None:
+            try:
+                from model_configs import get_recommended_model, MODEL_CONFIGS
+                recommended = get_recommended_model()
+                model_name = MODEL_CONFIGS[recommended]["model_name"]
+                logger.info(f"Auto-selected model: {recommended} ({model_name})")
+            except:
+                model_name = "codellama/CodeLlama-13b-Instruct-hf"  # Safe default
+                logger.info(f"Using default model: {model_name}")
+        
         self.model_name = model_name
         self.tokenizer = None
         self.model = None
         self.training_data = None
         self.comprehensive_data = {}
         
-        # Training configuration for comprehensive knowledge
+        # Training configuration for large language model (optimized for Code Llama)
         self.training_config = {
-            'max_length': 1024,
-            'batch_size': 4,  # Smaller batch size for larger context
-            'learning_rate': 3e-5,
-            'num_epochs': 5,  # More epochs for comprehensive learning
-            'warmup_steps': 500,
+            'max_length': 4096,  # Much larger context window
+            'batch_size': 1,     # Smaller batch size for large model
+            'learning_rate': 1e-5,  # Lower learning rate for large model
+            'num_epochs': 3,     # Fewer epochs needed for large model
+            'warmup_steps': 100,
             'weight_decay': 0.01,
             'gradient_accumulation_steps': 4,
             'save_steps': 500,
@@ -178,35 +189,62 @@ class ComprehensiveHardwareModelTrainer:
         return len(self.training_data) > 0
     
     def prepare_model_and_tokenizer(self):
-        """Prepare model and tokenizer for comprehensive training"""
+        """Prepare Code Llama model and tokenizer for comprehensive training"""
         
-        # Load tokenizer
-        self.tokenizer = GPT2Tokenizer.from_pretrained(self.model_name)
-        
-        # Add special tokens
-        special_tokens = {
-            'pad_token': '<|pad|>',
-            'eos_token': '<|endoftext|>',
-            'bos_token': '<|startoftext|>',
-            'unk_token': '<|unknown|>'
-        }
-        
-        self.tokenizer.add_special_tokens(special_tokens)
-        
-        # Load model
-        config = AutoConfig.from_pretrained(self.model_name)
-        self.model = GPT2LMHeadModel.from_pretrained(
-            self.model_name,
-            config=config,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-        )
-        
-        # Resize token embeddings for new tokens
-        self.model.resize_token_embeddings(len(self.tokenizer))
-        
-        logger.info(f"Model and tokenizer prepared: {self.model_name}")
-        logger.info(f"   Vocabulary size: {len(self.tokenizer)}")
-        logger.info(f"   Model parameters: {self.model.num_parameters():,}")
+        # Load tokenizer (Code Llama uses LlamaTokenizer)
+        try:
+            from transformers import LlamaTokenizer, LlamaForCausalLM
+            
+            self.tokenizer = LlamaTokenizer.from_pretrained(
+                self.model_name,
+                trust_remote_code=True
+            )
+            
+            # Set padding token for Code Llama
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            
+            # Load model with optimizations for large model
+            self.model = LlamaForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto" if torch.cuda.is_available() else None,
+                trust_remote_code=True,
+                load_in_8bit=True if torch.cuda.is_available() else False,  # Memory optimization
+                low_cpu_mem_usage=True
+            )
+            
+            logger.info(f"Code Llama model and tokenizer prepared: {self.model_name}")
+            logger.info(f"   Vocabulary size: {len(self.tokenizer)}")
+            logger.info(f"   Model parameters: {self.model.num_parameters():,}")
+            
+        except ImportError:
+            logger.warning("Code Llama not available, falling back to GPT-2")
+            # Fallback to GPT-2 if Code Llama not available
+            self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2-medium")
+            
+            # Add special tokens
+            special_tokens = {
+                'pad_token': '<|pad|>',
+                'eos_token': '<|endoftext|>',
+                'bos_token': '<|startoftext|>',
+                'unk_token': '<|unknown|>'
+            }
+            
+            self.tokenizer.add_special_tokens(special_tokens)
+            
+            # Load model
+            config = AutoConfig.from_pretrained("gpt2-medium")
+            self.model = GPT2LMHeadModel.from_pretrained(
+                "gpt2-medium",
+                config=config,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+            )
+            
+            # Resize token embeddings for new tokens
+            self.model.resize_token_embeddings(len(self.tokenizer))
+            
+            logger.info("Fallback GPT-2 model loaded")
     
     def setup_lora_for_comprehensive_training(self):
         """Setup LoRA for efficient comprehensive training"""
@@ -520,39 +558,69 @@ class ComprehensiveHardwareModelTrainer:
             logger.error(f"Error loading model: {e}")
             return False
     
-    def generate_response(self, prompt: str, max_length: int = 512, temperature: float = 0.7) -> str:
-        """Generate response using the trained model"""
+    def generate_response(self, prompt: str, max_length: int = 2048, temperature: float = 0.3) -> str:
+        """Generate response using the trained Code Llama model with instruction formatting"""
         
         if not hasattr(self, 'model') or self.model is None:
             logger.warning("Model not loaded, using fallback response")
             return self._generate_fallback_response(prompt)
         
         try:
-            # Tokenize the prompt
-            inputs = self.tokenizer.encode(prompt, return_tensors='pt')
+            # Format prompt for Code Llama instruction model
+            instruction_prompt = f"""[INST] You are an expert electronics engineer specializing in circuit design and JSON generation for Wokwi simulator.
+
+Task: {prompt}
+
+Generate ONLY the complete, valid JSON circuit diagram with proper wiring. Use the exact Wokwi format with version, author, editor, parts, connections, and dependencies fields.
+
+Make sure all connections use proper wire routing with arrays like ["v10", "h20", "*", "v-5"] for clean wire paths.
+
+Respond with ONLY the JSON, no explanation. [/INST]
+
+```json"""
             
-            # Generate response
+            # Tokenize the prompt
+            inputs = self.tokenizer.encode(instruction_prompt, return_tensors='pt')
+            
+            # Move to device if available
+            if torch.cuda.is_available() and hasattr(self.model, 'device'):
+                inputs = inputs.to(self.model.device)
+            
+            # Generate response with better parameters for code generation
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs,
-                    max_length=max_length,
+                    max_new_tokens=max_length,  # Use max_new_tokens instead of max_length
                     temperature=temperature,
                     do_sample=True,
-                    pad_token_id=self.tokenizer.eos_token_id,
+                    top_p=0.9,  # Nucleus sampling for better code quality
+                    top_k=50,   # Top-k sampling
+                    repetition_penalty=1.1,  # Reduce repetition
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
                     num_return_sequences=1
                 )
             
             # Decode the response
             response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
-            # Remove the prompt from the response
-            if prompt in response:
-                response = response.replace(prompt, "").strip()
+            # Extract JSON from response
+            if instruction_prompt in response:
+                response = response.replace(instruction_prompt, "").strip()
+            
+            # Clean up response to extract JSON
+            if "```json" in response:
+                start = response.find("```json") + 7
+                end = response.find("```", start)
+                if end != -1:
+                    response = response[start:end].strip()
+                else:
+                    response = response[start:].strip()
             
             return response
             
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
+            logger.error(f"Error generating response with Code Llama: {e}")
             return self._generate_fallback_response(prompt)
     
     def _generate_fallback_response(self, prompt: str) -> str:

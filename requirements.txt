@@ -1,11 +1,17 @@
-# AI/ML Dependencies
+# AI/ML Dependencies (Updated for Code Llama 70B)
 torch>=2.0.0
-transformers>=4.30.0
+transformers>=4.35.0
 sentence-transformers>=2.2.0
 datasets>=2.12.0
-accelerate>=0.20.0
-peft>=0.4.0
-bitsandbytes>=0.39.0
+accelerate>=0.23.0
+peft>=0.6.0
+bitsandbytes>=0.41.0
+protobuf>=3.20.0
+
+# Additional dependencies for Code Llama
+sentencepiece>=0.1.99
+tokenizers>=0.14.0
+safetensors>=0.3.0
 
 # Vector Database and RAG
 chromadb>=0.4.0
