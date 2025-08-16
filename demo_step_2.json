@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "author": "RAG AI Generator",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-arduino-uno",
+      "id": "mcu",
+      "top": 200,
+      "left": 200
+    },
+    {
+      "type": "wokwi-led",
+      "id": "comp1",
+      "top": 80,
+      "left": 350
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "R1",
+      "top": 110,
+      "left": 300,
+      "attrs": {
+        "value": "220"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "mcu:2",
+      "R1:1",
+      "red",
+      [
+        "v-47",
+        "h3",
+        "*",
+        "h-2",
+        "v2"
+      ]
+    ],
+    [
+      "R1:2",
+      "comp1:A",
+      "red",
+      [
+        "h10",
+        "*",
+        "h-5"
+      ]
+    ],
+    [
+      "mcu:GND.1",
+      "comp1:C",
+      "black",
+      [
+        "v-12",
+        "*",
+        "v4"
+      ]
+    ]
+  ],
+  "dependencies": {}
+}

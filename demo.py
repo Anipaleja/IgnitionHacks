@@ -12,11 +12,12 @@ Usage: Just run this script and choose your preferred mode!
 
 import sys
 import os
+import json
+import re
+import math
 sys.path.append('.')
 
 from main import generate_circuit_diagram_json
-import json
-import re
 
 def ai_component_assessment(component_input):
     """AI-powered component assessment and recognition"""
@@ -314,6 +315,8 @@ def parse_text_input(text_input):
         'pushbutton': {"type": "wokwi-pushbutton", "id": "btn1"},
         'push button': {"type": "wokwi-pushbutton", "id": "btn1"},
         'buzzer': {"type": "wokwi-buzzer", "id": "bz1"},
+        'piezo': {"type": "wokwi-piezo-buzzer", "id": "piezo1"},
+        'piezo buzzer': {"type": "wokwi-piezo-buzzer", "id": "piezo1"},
         'alarm': {"type": "wokwi-buzzer", "id": "bz1"},
         'speaker': {"type": "wokwi-buzzer", "id": "bz1"},
         
@@ -561,6 +564,637 @@ def interactive_selection_mode():
     
     return selected
 
+def generate_step_instructions(step_num, components, diagram_data, filename, arduino_center):
+    """Generate detailed step-by-step instructions for beginners"""
+    
+    # Component name mapping for friendly names
+    component_names = {
+        'wokwi-arduino-uno': 'Arduino Uno',
+        'wokwi-arduino-mega': 'Arduino Mega',
+        'wokwi-esp32-devkit-v1': 'ESP32 Development Board',
+        'wokwi-led': 'LED (Light Emitting Diode)',
+        'wokwi-resistor': 'Resistor',
+        'wokwi-pushbutton': 'Push Button',
+        'wokwi-buzzer': 'Buzzer',
+        'wokwi-piezo-buzzer': 'Piezo Buzzer',
+        'board-ssd1306': 'OLED Display (SSD1306)',
+        'wokwi-dht22': 'Temperature & Humidity Sensor (DHT22)',
+        'board-ili9341-cap-touch': 'TFT Display (ILI9341)',
+        'wokwi-microsd-card': 'SD Card Module',
+        'board-l298n': 'Motor Driver (L298N)',
+        'wokwi-servo': 'Servo Motor'
+    }
+    
+    # Pin description mapping
+    pin_descriptions = {
+        'GND': 'Ground (negative power)',
+        '5V': '5 volt power supply',
+        '3.3V': '3.3 volt power supply',
+        'A4': 'Analog pin A4 (SDA for I2C)',
+        'A5': 'Analog pin A5 (SCL for I2C)',
+        'VCC': 'Positive power input',
+        'SDA': 'Serial Data Line (I2C communication)',
+        'SCL': 'Serial Clock Line (I2C communication)',
+        'A': 'Anode (positive leg of LED)',
+        'C': 'Cathode (negative leg of LED)',
+        '1': 'Pin 1',
+        '2': 'Pin 2'
+    }
+    
+    with open(filename, 'w') as f:
+        f.write("=" * 70 + "\n")
+        f.write(f"STEP {step_num} BUILDING INSTRUCTIONS - BEGINNER GUIDE\n")
+        f.write("=" * 70 + "\n\n")
+        
+        # What you're building
+        if step_num == 1:
+            f.write("WHAT YOU'RE BUILDING:\n")
+            f.write("In this first step, you'll set up your microcontroller.\n")
+            f.write("This is the 'brain' of your circuit that will control everything.\n\n")
+        else:
+            new_comp = components[-1]  # Last component is the new one
+            comp_name = component_names.get(new_comp['type'], new_comp['type'])
+            f.write("WHAT YOU'RE ADDING:\n")
+            f.write(f"In this step, you'll add a {comp_name} to your circuit.\n\n")
+        
+        # Components needed
+        f.write("COMPONENTS NEEDED FOR THIS STEP:\n")
+        f.write("-" * 40 + "\n")
+        for i, comp in enumerate(components, 1):
+            comp_name = component_names.get(comp['type'], comp['type'])
+            f.write(f"{i}. {comp_name}\n")
+            
+            # Add component description
+            if 'arduino' in comp['type']:
+                f.write("   - This is your microcontroller board\n")
+                f.write("   - It has many pins for connecting components\n")
+            elif 'led' in comp['type']:
+                f.write("   - This light will turn on/off when controlled\n")
+                f.write("   - Has two legs: long leg is positive (+), short leg is negative (-)\n")
+            elif 'resistor' in comp['type']:
+                resistance = "220"  # Default
+                for part in diagram_data['parts']:
+                    if part['id'] == comp['id'] and 'attrs' in part:
+                        resistance = part['attrs'].get('value', '220')
+                        break
+                f.write(f"   - Limits electrical current (this one is {resistance} ohms)\n")
+                f.write("   - Protects components from too much electricity\n")
+            elif 'buzzer' in comp['type'] or 'piezo' in comp['type']:
+                f.write("   - Makes sound when electricity passes through it\n")
+                f.write("   - Has two pins for positive and negative connections\n")
+            elif 'ssd1306' in comp['type'] or 'oled' in comp['type']:
+                f.write("   - Small screen that can display text and graphics\n")
+                f.write("   - Uses I2C communication (only needs 4 wires)\n")
+            elif 'pushbutton' in comp['type']:
+                f.write("   - Press to complete the circuit\n")
+                f.write("   - Has 4 pins but only 2 are used typically\n")
+        
+        # Tools needed
+        f.write(f"\nTOOLS YOU'LL NEED:\n")
+        f.write("-" * 20 + "\n")
+        f.write("- Breadboard (for making connections)\n")
+        f.write("- Jumper wires (various colors recommended)\n")
+        if step_num > 1:
+            f.write("- Wire strippers (if using solid core wire)\n")
+        f.write("- USB cable (to power and program the Arduino)\n\n")
+        
+        # Safety first
+        f.write("SAFETY FIRST:\n")
+        f.write("-" * 15 + "\n")
+        f.write("- Always disconnect power before making changes\n")
+        f.write("- Double-check all connections before powering on\n")
+        f.write("- Never connect power pins directly together\n")
+        f.write("- Be gentle with components - they can be fragile\n\n")
+        
+        if step_num == 1:
+            f.write("STEP-BY-STEP INSTRUCTIONS:\n")
+            f.write("-" * 30 + "\n")
+            f.write("1. PREPARE YOUR WORKSPACE:\n")
+            f.write("   - Find a clean, well-lit area\n")
+            f.write("   - Have your breadboard ready\n")
+            f.write("   - Keep components organized\n\n")
+            
+            f.write("2. POSITION YOUR ARDUINO:\n")
+            f.write("   - Place the Arduino Uno on your work surface\n")
+            f.write("   - Note the pin labels along the edges\n")
+            f.write("   - The USB connector should be easily accessible\n\n")
+            
+            f.write("3. FAMILIARIZE YOURSELF WITH PINS:\n")
+            f.write("   - Digital pins: 0-13 (used for on/off signals)\n")
+            f.write("   - Analog pins: A0-A5 (used for sensors)\n")
+            f.write("   - Power pins: 5V, 3.3V, GND (for powering components)\n\n")
+            
+            f.write("4. CONNECT USB CABLE:\n")
+            f.write("   - Plug USB cable into Arduino\n")
+            f.write("   - Connect other end to your computer\n")
+            f.write("   - The power LED should light up\n\n")
+            
+            f.write("WHAT HAPPENS NEXT:\n")
+            f.write("- Your Arduino is now ready for programming\n")
+            f.write("- In the next step, we'll add our first component\n\n")
+        
+        else:
+            # For steps 2+, show detailed wiring instructions
+            f.write("STEP-BY-STEP WIRING INSTRUCTIONS:\n")
+            f.write("-" * 40 + "\n")
+            
+            # Get the new component (last one added)
+            new_comp = components[-1]
+            new_comp_name = component_names.get(new_comp['type'], new_comp['type'])
+            
+            f.write(f"You are adding: {new_comp_name}\n\n")
+            
+            # Find connections for the new component
+            new_connections = [conn for conn in diagram_data['connections'] if new_comp['id'] in conn[1]]
+            
+            if new_connections:
+                f.write("WIRE CONNECTIONS TO MAKE:\n")
+                f.write("-" * 30 + "\n")
+                
+                for i, conn in enumerate(new_connections, 1):
+                    source = conn[0]  # e.g., "arduino:2"
+                    target = conn[1]  # e.g., "comp1:A"
+                    color = conn[2]   # wire color
+                    
+                    # Parse source and target
+                    source_parts = source.split(':')
+                    target_parts = target.split(':')
+                    
+                    source_device = source_parts[0]
+                    source_pin = source_parts[1] if len(source_parts) > 1 else ""
+                    target_device = target_parts[0]
+                    target_pin = target_parts[1] if len(target_parts) > 1 else ""
+                    
+                    # Get pin descriptions
+                    source_desc = pin_descriptions.get(source_pin, source_pin)
+                    target_desc = pin_descriptions.get(target_pin, target_pin)
+                    
+                    f.write(f"CONNECTION {i}:\n")
+                    f.write(f"   From: Arduino pin {source_pin} ({source_desc})\n")
+                    f.write(f"   To:   {new_comp_name} pin {target_pin} ({target_desc})\n")
+                    f.write(f"   Use:  {color.upper()} wire (or any color you prefer)\n")
+                    
+                    # Add specific instructions based on component type
+                    if 'led' in new_comp['type'] and target_pin == 'A':
+                        f.write("   Note: This connects to the LONG leg of the LED (positive)\n")
+                    elif 'led' in new_comp['type'] and target_pin == 'C':
+                        f.write("   Note: This connects to the SHORT leg of the LED (negative)\n")
+                    elif target_pin == 'GND':
+                        f.write("   Note: This is the negative/ground connection\n")
+                    elif target_pin in ['VCC', '5V', '3.3V']:
+                        f.write("   Note: This provides power to the component\n")
+                    elif target_pin in ['SDA', 'SCL']:
+                        f.write("   Note: This is for I2C communication with the display\n")
+                    
+                    f.write("\n")
+                
+                # Add resistor information if present
+                resistors = [p for p in diagram_data['parts'] if 'resistor' in p['type'].lower()]
+                if resistors:
+                    f.write("IMPORTANT - RESISTOR CONNECTIONS:\n")
+                    f.write("-" * 35 + "\n")
+                    for resistor in resistors:
+                        if resistor['id'] not in [c['id'] for c in components]:  # Auto-added resistor
+                            resistance = resistor['attrs'].get('value', '???')
+                            f.write(f"A {resistance} ohm resistor has been automatically added for safety.\n")
+                            f.write("This resistor prevents too much current from damaging components.\n")
+                            f.write("The resistor goes between the Arduino pin and the component.\n\n")
+            
+            # Physical placement tips
+            f.write("PLACEMENT TIPS:\n")
+            f.write("-" * 15 + "\n")
+            rel_top = new_comp.get('top', 200) - arduino_center['top']
+            rel_left = new_comp.get('left', 200) - arduino_center['left']
+            
+            if rel_top < 0:
+                f.write(f"- Place the {new_comp_name} ABOVE your Arduino\n")
+            elif rel_top > 0:
+                f.write(f"- Place the {new_comp_name} BELOW your Arduino\n")
+            
+            if rel_left < 0:
+                f.write(f"- Position it to the LEFT side\n")
+            elif rel_left > 0:
+                f.write(f"- Position it to the RIGHT side\n")
+            
+            f.write("- Keep wire connections neat and organized\n")
+            f.write("- Use different colored wires for different types of connections\n")
+            f.write("- Leave some space between components for easy access\n\n")
+        
+        # Testing section
+        f.write("TESTING YOUR CIRCUIT:\n")
+        f.write("-" * 25 + "\n")
+        f.write("1. Double-check all connections match the instructions above\n")
+        f.write("2. Make sure no wires are touching that shouldn't be\n")
+        f.write("3. Connect power (USB cable to Arduino)\n")
+        
+        if step_num == 1:
+            f.write("4. Look for the power LED on the Arduino - it should be ON\n")
+            f.write("5. If the power LED is off, check your USB connection\n")
+        else:
+            if 'led' in new_comp['type']:
+                f.write("4. The LED might not light up until you upload code\n")
+                f.write("5. This is normal - the LED needs to be programmed to turn on\n")
+            elif 'buzzer' in new_comp['type'] or 'piezo' in new_comp['type']:
+                f.write("4. The buzzer will be silent until programmed\n")
+                f.write("5. You'll need to upload code to make it beep\n")
+            elif 'ssd1306' in new_comp['type']:
+                f.write("4. The display will be blank until programmed\n")
+                f.write("5. You'll need special code to show text/graphics\n")
+        
+        f.write("\nTROUBLESHOOTING:\n")
+        f.write("-" * 15 + "\n")
+        f.write("- If something doesn't work, disconnect power immediately\n")
+        f.write("- Check that all wire connections are secure\n")
+        f.write("- Verify you're using the correct pins\n")
+        f.write("- Make sure components are oriented correctly\n")
+        f.write("- For LEDs: long leg goes to positive, short leg to negative\n\n")
+        
+        # Next steps
+        if step_num < len(components):
+            f.write("WHAT'S NEXT:\n")
+            f.write("-" * 12 + "\n")
+            f.write(f"Great job completing Step {step_num}!\n")
+            f.write(f"In Step {step_num + 1}, you'll add the next component to build\n")
+            f.write("an even more interesting circuit.\n\n")
+        else:
+            f.write("CONGRATULATIONS!\n")
+            f.write("-" * 15 + "\n")
+            f.write("You've completed building your circuit!\n")
+            f.write("Now you can write code to control your components.\n")
+            f.write("Check online tutorials for Arduino programming examples.\n\n")
+        
+        f.write("PROGRAMMING RESOURCES:\n")
+        f.write("-" * 20 + "\n")
+        f.write("- Arduino IDE: https://www.arduino.cc/en/software\n")
+        f.write("- Arduino Tutorials: https://www.arduino.cc/en/Tutorial\n")
+        f.write("- Wokwi Simulator: https://wokwi.com (test your circuit online)\n\n")
+        
+        f.write("=" * 70 + "\n")
+        f.write("END OF STEP INSTRUCTIONS\n")
+        f.write("=" * 70 + "\n")
+
+def generate_progressive_circuits(components):
+    """Generate progressive circuit diagrams step by step"""
+    
+    # Separate microcontroller from other components
+    mcu = None
+    other_components = []
+    
+    for comp in components:
+        comp_type = comp['type'].lower()
+        if any(x in comp_type for x in ['arduino', 'esp32', 'mega', 'nano']):
+            mcu = comp
+        else:
+            other_components.append(comp)
+    
+    if not mcu:
+        print("No microcontroller found! Adding Arduino Uno as default.")
+        mcu = {"type": "wokwi-arduino-uno", "id": "mcu"}
+    
+    print(f"\nPROGRESSIVE CIRCUIT GENERATION")
+    print("=" * 50)
+    print(f"Building circuit step by step:")
+    print(f"• Step 1: {mcu['type'].replace('wokwi-', '').replace('-', ' ').title()}")
+    
+    for i, comp in enumerate(other_components, 2):
+        comp_name = comp.get('name', comp.get('description', comp['type'].replace('wokwi-', '').replace('board-', '').replace('-', ' ').title()))
+        print(f"• Step {i}: + {comp_name}")
+    print()
+    
+    # Position components with proper spacing
+    arduino_center = {"top": 200, "left": 200}
+    positioned_components = [mcu.copy()]
+    positioned_components[0].update(arduino_center)
+    
+    # Position other components in a logical layout
+    spacing_patterns = [
+        {"top": -120, "left": 150},   # Above and right
+        {"top": 120, "left": 150},    # Below and right
+        {"top": -50, "left": 250},    # Above and far right
+        {"top": 50, "left": 250},     # Below and far right
+        {"top": -120, "left": -150},  # Above and left
+        {"top": 120, "left": -150},   # Below and left
+        {"top": 0, "left": 300},      # Right side
+        {"top": 0, "left": -200},     # Left side
+    ]
+    
+    for i, comp in enumerate(other_components):
+        positioned_comp = comp.copy()
+        if i < len(spacing_patterns):
+            pattern = spacing_patterns[i]
+            positioned_comp.update({
+                "top": arduino_center["top"] + pattern["top"],
+                "left": arduino_center["left"] + pattern["left"]
+            })
+        else:
+            # Fallback positioning for many components
+            angle = (i * 45) % 360
+            import math
+            radius = 200 + (i // 8) * 50
+            positioned_comp.update({
+                "top": arduino_center["top"] + int(radius * math.sin(math.radians(angle))),
+                "left": arduino_center["left"] + int(radius * math.cos(math.radians(angle)))
+            })
+        
+        positioned_components.append(positioned_comp)
+    
+    # Generate step-by-step circuits
+    generated_files = []
+    
+    for step in range(1, len(positioned_components) + 1):
+        current_components = positioned_components[:step]
+        
+        # Create step filename
+        step_filename = f"demo_step_{step}.json"
+        
+        print(f"STEP {step}: ", end="")
+        if step == 1:
+            comp_name = mcu['type'].replace('wokwi-', '').replace('-', ' ').title()
+            print(f"{comp_name}")
+            print(f"--------------------------------------------------")
+            print(f"   {comp_name}")
+            print(f"       Position: Center (top: 200, left: 200)")
+        else:
+            new_comp = positioned_components[step-1]
+            comp_name = new_comp.get('name', new_comp.get('description', new_comp['type'].replace('wokwi-', '').replace('board-', '').replace('-', ' ').title()))
+            print(f"+ {comp_name}")
+            print(f"--------------------------------------------------")
+            
+            # Show all components
+            for i, comp in enumerate(current_components):
+                if i == 0:
+                    name = comp['type'].replace('wokwi-', '').replace('-', ' ').title()
+                    print(f"   {name}")
+                    print(f"       Position: Center (top: 200, left: 200)")
+                else:
+                    name = comp.get('name', comp.get('description', comp['type'].replace('wokwi-', '').replace('board-', '').replace('-', ' ').title()))
+                    if i == step - 1:  # New component
+                        print(f"   {name}")
+                    else:
+                        print(f"   {name}")
+                    
+                    # Calculate relative position
+                    rel_top = comp.get('top', 200) - arduino_center['top']
+                    rel_left = comp.get('left', 200) - arduino_center['left']
+                    
+                    if rel_top == 0 and rel_left == 0:
+                        print(f"       Position: Same as Arduino")
+                    else:
+                        v_desc = f"{abs(rel_top)}px {'above' if rel_top < 0 else 'below'}" if rel_top != 0 else ""
+                        h_desc = f"{abs(rel_left)}px {'left' if rel_left < 0 else 'right'}" if rel_left != 0 else ""
+                        
+                        if v_desc and h_desc:
+                            print(f"       Position: {v_desc} and {h_desc} of Arduino")
+                        elif v_desc:
+                            print(f"       Position: {v_desc} of Arduino")
+                        elif h_desc:
+                            print(f"       Position: {h_desc} of Arduino")
+        
+        print(f"\nGenerating circuit diagram...")
+        
+        # Generate the circuit
+        try:
+            diagram_json = generate_circuit_diagram_json(
+                parts=current_components,
+                save_to_file=step_filename
+            )
+            
+            # Parse to get statistics
+            diagram_data = json.loads(diagram_json)
+            total_parts = len(diagram_data['parts'])
+            original_parts = len(current_components)
+            auto_added = total_parts - original_parts
+            connections = len(diagram_data['connections'])
+            
+            print(f"Circuit generated successfully!")
+            print(f"   Components: {total_parts} total ({original_parts} original + {auto_added} auto-added)")
+            print(f"   Connections: {connections} electrical connections")
+            print(f"   Saved as: {step_filename}")
+            
+            # Generate instruction file for this step
+            instruction_filename = f"demo_step_{step}_instructions.txt"
+            generate_step_instructions(step, current_components, diagram_data, instruction_filename, arduino_center)
+            print(f"   Instructions: {instruction_filename}")
+            
+            # Show auto-added components
+            if auto_added > 0:
+                auto_resistors = [p for p in diagram_data['parts'] if 'resistor' in p['type'].lower() and p['id'] not in [c['id'] for c in current_components]]
+                if auto_resistors:
+                    resistor_names = [f"{r['id']} ({r['attrs'].get('value', '??')}Ω)" for r in auto_resistors]
+                    print(f"   Auto-added: {', '.join(resistor_names)}")
+            
+            # Show connections for new component
+            if step > 1:
+                new_comp_id = positioned_components[step-1]['id']
+                new_connections = [conn for conn in diagram_data['connections'] if new_comp_id in conn[1]]
+                if new_connections:
+                    print(f"   {comp_name} connections:")
+                    for conn in new_connections:
+                        wire_color = conn[2]
+                        source_pin = conn[0]
+                        target_pin = conn[1]
+                        print(f"      • {source_pin} → {target_pin} ({wire_color} wire)")
+            
+            generated_files.append(step_filename)
+            
+        except Exception as e:
+            print(f"Error generating step {step}: {e}")
+        
+        print("\n" + "=" * 60 + "\n")
+    
+    # Final summary
+    print(f"PROGRESSIVE GENERATION COMPLETE")
+    print("=" * 40)
+    print(f"Generated {len(generated_files)} circuit files:")
+    for i, filename in enumerate(generated_files, 1):
+        step_desc = "Arduino only" if i == 1 else f"Arduino + {i-1} component{'s' if i > 2 else ''}"
+        print(f"   • {filename} ({step_desc})")
+    
+    print(f"\nAll files generated successfully!")
+    print(f"You can now open these files in Wokwi to see the progressive circuit building.")
+
+def wokwi_autogui_mode():
+    """Mode that uses existing demo_step_X.json files for Wokwi AutoGUI automation"""
+    from pathlib import Path
+    import webbrowser
+    import time
+    
+    # Try to import pyautogui
+    try:
+        import pyautogui
+        autogui_available = True
+    except ImportError:
+        autogui_available = False
+    
+    print("Wokwi AutoGUI Automation Mode")
+    print("=" * 35)
+    print()
+    print("This mode will automatically load your demo step files into Wokwi")
+    print("and capture screenshots of each progressive circuit step.")
+    print()
+    
+    # Find existing demo step files
+    demo_files = []
+    for i in range(1, 10):
+        step_file = Path(f"demo_step_{i}.json")
+        if step_file.exists():
+            try:
+                with open(step_file, 'r') as f:
+                    content = f.read()
+                    json.loads(content)  # Validate JSON
+                    demo_files.append({
+                        "file": step_file.name,
+                        "content": content,
+                        "step": i
+                    })
+            except json.JSONDecodeError:
+                print(f"⚠️  Warning: {step_file.name} contains invalid JSON")
+            except Exception as e:
+                print(f"⚠️  Warning: Error reading {step_file.name}: {e}")
+    
+    if not demo_files:
+        print("❌ No demo step files found!")
+        print("\nTo create demo step files:")
+        print("1. Choose option 1, 2, 3, or 4 to generate components")
+        print("2. Select progressive generation mode")
+        print("3. Then return to this AutoGUI mode")
+        return
+    
+    print(f"✅ Found {len(demo_files)} demo step files:")
+    for file_info in demo_files:
+        print(f"   • {file_info['file']}")
+    
+    if not autogui_available:
+        print("\n⚠️  PyAutoGUI not available!")
+        print("Install with: pip install pyautogui")
+        print("\nFor now, showing you the demo file contents that would be used:")
+        
+        for i, file_info in enumerate(demo_files, 1):
+            print(f"\n--- Step {i}: {file_info['file']} ---")
+            # Show a preview of the JSON
+            try:
+                data = json.loads(file_info['content'])
+                print(f"Components: {len(data.get('parts', []))}")
+                print(f"Connections: {len(data.get('connections', []))}")
+                
+                # Show component names
+                parts = data.get('parts', [])
+                if parts:
+                    print("Parts:")
+                    for part in parts:
+                        part_name = part['type'].replace('wokwi-', '').replace('board-', '').replace('-', ' ').title()
+                        print(f"  - {part_name} (ID: {part['id']})")
+            except:
+                print("Error parsing JSON content")
+        
+        return
+    
+    # Configuration for AutoGUI
+    print(f"\nAutoGUI Configuration:")
+    print("=" * 25)
+    
+    # Get Wokwi URL
+    default_url = "https://wokwi.com/projects/342032431249883731"
+    url = input(f"Wokwi project URL (or press Enter for default): ").strip()
+    if not url:
+        url = default_url
+    
+    print(f"Will use: {url}")
+    
+    # Get timing preferences
+    print(f"\nTiming Settings:")
+    try:
+        load_delay = int(input("Page load delay in seconds (default 8): ").strip() or "8")
+        update_delay = int(input("Circuit update delay in seconds (default 4): ").strip() or "4")
+    except ValueError:
+        load_delay = 8
+        update_delay = 4
+    
+    # Create screenshots directory
+    screenshot_dir = Path("wokwi_screenshots")
+    screenshot_dir.mkdir(exist_ok=True)
+    
+    print(f"\nStarting AutoGUI automation...")
+    print("=" * 35)
+    print("⚠️  IMPORTANT: Position your browser window so Wokwi is visible!")
+    print("💡 The automation will start in 5 seconds...")
+    
+    for i in range(5, 0, -1):
+        print(f"   Starting in {i}...")
+        time.sleep(1)
+    
+    # Open Wokwi
+    print(f"\n🌐 Opening Wokwi: {url}")
+    webbrowser.open(url)
+    
+    print(f"⏳ Waiting {load_delay} seconds for page to load...")
+    time.sleep(load_delay)
+    
+    # Coordinates (these are the same as in wokwi_autogui.py)
+    diagram_tab_pos = (297, 177)
+    code_area_pos = (400, 400)
+    empty_click_pos = (900, 300)
+    screenshot_region = (672, 287, 1004, 860)
+    
+    print(f"\n🤖 Starting progressive automation...")
+    
+    for file_info in demo_files:
+        step_num = file_info['step']
+        content = file_info['content']
+        
+        print(f"\n🔄 Processing Step {step_num}: {file_info['file']}")
+        
+        try:
+            # Click diagram.json tab
+            print("   📋 Clicking diagram.json tab...")
+            pyautogui.click(diagram_tab_pos)
+            time.sleep(0.3)
+            
+            # Select all and replace text
+            print("   ✏️  Updating circuit JSON...")
+            pyautogui.click(code_area_pos)
+            pyautogui.hotkey('cmd', 'a')  # macOS
+            time.sleep(0.2)
+            pyautogui.press('delete')
+            time.sleep(0.2)
+            pyautogui.write(content, interval=0.001)
+            
+            # Wait for update
+            print(f"   ⏳ Waiting {update_delay}s for circuit to update...")
+            time.sleep(update_delay)
+            
+            # Clear cursor
+            pyautogui.click(empty_click_pos)
+            time.sleep(0.5)
+            
+            # Take screenshot
+            screenshot_path = screenshot_dir / f"demo_step_{step_num}.png"
+            print(f"   📸 Capturing: {screenshot_path}")
+            pyautogui.screenshot(str(screenshot_path), region=screenshot_region)
+            
+            print(f"   ✅ Step {step_num} completed!")
+            
+        except Exception as e:
+            print(f"   ❌ Error in step {step_num}: {e}")
+    
+    print(f"\n🎉 AutoGUI automation completed!")
+    print(f"📁 Screenshots saved in: {screenshot_dir}/")
+    
+    # Show results
+    print(f"\nGenerated Screenshots:")
+    for file_info in demo_files:
+        screenshot_file = screenshot_dir / f"demo_step_{file_info['step']}.png"
+        if screenshot_file.exists():
+            print(f"   ✅ {screenshot_file.name}")
+        else:
+            print(f"   ❌ {screenshot_file.name} (failed)")
+    
+    print(f"\n🎯 What you can do next:")
+    print("• Review the captured screenshots")
+    print("• Use them for documentation or presentations")
+    print("• Share your progressive circuit demos")
+    print("• Adjust coordinates in the script if clicks were off-target")
+
 def demo_rag_ai_circuit_generator():
     """Main demo function with mode selection"""
     
@@ -572,11 +1206,12 @@ def demo_rag_ai_circuit_generator():
     print("2. Interactive Selection - Choose from component menu")
     print("3. Custom Components - Enter your own component types")
     print("4. AI Assessment - AI analyzes and wires your components")
+    print("5. Wokwi AutoGUI - Use existing demo files for browser automation")
     print()
     
     # Mode selection
     while True:
-        mode = input("Enter your choice (1, 2, 3, or 4): ").strip()
+        mode = input("Enter your choice (1, 2, 3, 4, or 5): ").strip()
         if mode == "1":
             components = text_input_mode()
             break
@@ -589,8 +1224,11 @@ def demo_rag_ai_circuit_generator():
         elif mode == "4":
             components = ai_assessment_mode()
             break
+        elif mode == "5":
+            wokwi_autogui_mode()
+            return  # Exit after AutoGUI mode
         else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+            print("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
     
     print(f"\nYour circuit will have {len(components)} components:")
     for part in components:
@@ -602,39 +1240,56 @@ def demo_rag_ai_circuit_generator():
         if 'wiring_notes' in part:
             print(f"     Note: {part['wiring_notes']}")
     
-    # Generate filename
-    filename = input("\nEnter filename for diagram (or press Enter for 'circuit.json'): ").strip()
-    if not filename:
-        filename = "circuit.json"
-    if not filename.endswith('.json'):
-        filename += '.json'
+    # Ask user about generation mode
+    print(f"\nChoose generation mode:")
+    print("1. Single circuit file - Generate one complete circuit")
+    print("2. Progressive circuit files - Generate step-by-step circuits")
     
-    print(f"\nGenerating circuit diagram...")
+    while True:
+        gen_mode = input("Enter your choice (1 or 2): ").strip()
+        if gen_mode in ["1", "2"]:
+            break
+        print("Invalid choice. Please enter 1 or 2.")
     
-    # Generate the circuit diagram JSON
-    diagram_json = generate_circuit_diagram_json(
-        parts=components,
-        save_to_file=filename
-    )
+    if gen_mode == "1":
+        # Original single file generation
+        filename = input("\nEnter filename for diagram (or press Enter for 'circuit.json'): ").strip()
+        if not filename:
+            filename = "circuit.json"
+        if not filename.endswith('.json'):
+            filename += '.json'
+        
+        print(f"\nGenerating circuit diagram...")
+        
+        # Generate the circuit diagram JSON
+        diagram_json = generate_circuit_diagram_json(
+            parts=components,
+            save_to_file=filename
+        )
+        
+        print(f"\nCircuit generated successfully!")
+        print(f"Saved to: {filename}")
+        
+        # Show a preview of the generated JSON
+        diagram_data = json.loads(diagram_json)
+        
+        print(f"\nGenerated circuit summary:")
+        print(f"   Components: {len(diagram_data['parts'])}")
+        print(f"   Connections: {len(diagram_data['connections'])} wires")
+        
+        print(f"\nWire connections:")
+        for i, conn in enumerate(diagram_data["connections"][:5]):  # Show first 5
+            print(f"   {conn[0]} -> {conn[1]} ({conn[2]} wire)")
+        if len(diagram_data["connections"]) > 5:
+            print(f"   ... and {len(diagram_data['connections']) - 5} more connections")
+        
+        print(f"\nYour circuit diagram is ready!")
+        print(f"You can now open {filename} in Wokwi for simulation.")
     
-    print(f"\nCircuit generated successfully!")
-    print(f"Saved to: {filename}")
-    
-    # Show a preview of the generated JSON
-    diagram_data = json.loads(diagram_json)
-    
-    print(f"\nGenerated circuit summary:")
-    print(f"   Components: {len(diagram_data['parts'])}")
-    print(f"   Connections: {len(diagram_data['connections'])} wires")
-    
-    print(f"\nWire connections:")
-    for i, conn in enumerate(diagram_data["connections"][:5]):  # Show first 5
-        print(f"   {conn[0]} -> {conn[1]} ({conn[2]} wire)")
-    if len(diagram_data["connections"]) > 5:
-        print(f"   ... and {len(diagram_data['connections']) - 5} more connections")
-    
-    print(f"\nYour circuit diagram is ready!")
-    print(f"You can now open {filename} in Wokwi for simulation.")
+    else:
+        # Progressive generation
+        print(f"\nGenerating progressive circuit diagrams...")
+        generate_progressive_circuits(components)
 
 if __name__ == "__main__":
     demo_rag_ai_circuit_generator()

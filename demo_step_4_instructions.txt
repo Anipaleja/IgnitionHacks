@@ -1,0 +1,111 @@
+======================================================================
+STEP 4 BUILDING INSTRUCTIONS - BEGINNER GUIDE
+======================================================================
+
+WHAT YOU'RE ADDING:
+In this step, you'll add a OLED Display (SSD1306) to your circuit.
+
+COMPONENTS NEEDED FOR THIS STEP:
+----------------------------------------
+1. Arduino Uno
+   - This is your microcontroller board
+   - It has many pins for connecting components
+2. LED (Light Emitting Diode)
+   - This light will turn on/off when controlled
+   - Has two legs: long leg is positive (+), short leg is negative (-)
+3. Buzzer
+   - Makes sound when electricity passes through it
+   - Has two pins for positive and negative connections
+4. OLED Display (SSD1306)
+   - Small screen that can display text and graphics
+   - Uses I2C communication (only needs 4 wires)
+
+TOOLS YOU'LL NEED:
+--------------------
+- Breadboard (for making connections)
+- Jumper wires (various colors recommended)
+- Wire strippers (if using solid core wire)
+- USB cable (to power and program the Arduino)
+
+SAFETY FIRST:
+---------------
+- Always disconnect power before making changes
+- Double-check all connections before powering on
+- Never connect power pins directly together
+- Be gentle with components - they can be fragile
+
+STEP-BY-STEP WIRING INSTRUCTIONS:
+----------------------------------------
+You are adding: OLED Display (SSD1306)
+
+WIRE CONNECTIONS TO MAKE:
+------------------------------
+CONNECTION 1:
+   From: Arduino pin GND.3 (GND.3)
+   To:   OLED Display (SSD1306) pin GND (Ground (negative power))
+   Use:  BLACK wire (or any color you prefer)
+   Note: This is the negative/ground connection
+
+CONNECTION 2:
+   From: Arduino pin 3.3V (3.3 volt power supply)
+   To:   OLED Display (SSD1306) pin VCC (Positive power input)
+   Use:  RED wire (or any color you prefer)
+   Note: This provides power to the component
+
+CONNECTION 3:
+   From: Arduino pin A4 (Analog pin A4 (SDA for I2C))
+   To:   OLED Display (SSD1306) pin SDA (Serial Data Line (I2C communication))
+   Use:  GOLD wire (or any color you prefer)
+   Note: This is for I2C communication with the display
+
+CONNECTION 4:
+   From: Arduino pin A5 (Analog pin A5 (SCL for I2C))
+   To:   OLED Display (SSD1306) pin SCL (Serial Clock Line (I2C communication))
+   Use:  CYAN wire (or any color you prefer)
+   Note: This is for I2C communication with the display
+
+IMPORTANT - RESISTOR CONNECTIONS:
+-----------------------------------
+A 220 ohm resistor has been automatically added for safety.
+This resistor prevents too much current from damaging components.
+The resistor goes between the Arduino pin and the component.
+
+PLACEMENT TIPS:
+---------------
+- Place the OLED Display (SSD1306) ABOVE your Arduino
+- Position it to the RIGHT side
+- Keep wire connections neat and organized
+- Use different colored wires for different types of connections
+- Leave some space between components for easy access
+
+TESTING YOUR CIRCUIT:
+-------------------------
+1. Double-check all connections match the instructions above
+2. Make sure no wires are touching that shouldn't be
+3. Connect power (USB cable to Arduino)
+4. The display will be blank until programmed
+5. You'll need special code to show text/graphics
+
+TROUBLESHOOTING:
+---------------
+- If something doesn't work, disconnect power immediately
+- Check that all wire connections are secure
+- Verify you're using the correct pins
+- Make sure components are oriented correctly
+- For LEDs: long leg goes to positive, short leg to negative
+
+CONGRATULATIONS!
+---------------
+You've completed building your circuit!
+Now you can write code to control your components.
+Check online tutorials for Arduino programming examples.
+
+PROGRAMMING RESOURCES:
+--------------------
+- Arduino IDE: https://www.arduino.cc/en/software
+- Arduino Tutorials: https://www.arduino.cc/en/Tutorial
+- Wokwi Simulator: https://wokwi.com (test your circuit online)
+
+======================================================================
+END OF STEP INSTRUCTIONS
+======================================================================

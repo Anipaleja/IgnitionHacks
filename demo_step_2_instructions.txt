@@ -1,0 +1,93 @@
+======================================================================
+STEP 2 BUILDING INSTRUCTIONS - BEGINNER GUIDE
+======================================================================
+
+WHAT YOU'RE ADDING:
+In this step, you'll add a LED (Light Emitting Diode) to your circuit.
+
+COMPONENTS NEEDED FOR THIS STEP:
+----------------------------------------
+1. Arduino Uno
+   - This is your microcontroller board
+   - It has many pins for connecting components
+2. LED (Light Emitting Diode)
+   - This light will turn on/off when controlled
+   - Has two legs: long leg is positive (+), short leg is negative (-)
+
+TOOLS YOU'LL NEED:
+--------------------
+- Breadboard (for making connections)
+- Jumper wires (various colors recommended)
+- Wire strippers (if using solid core wire)
+- USB cable (to power and program the Arduino)
+
+SAFETY FIRST:
+---------------
+- Always disconnect power before making changes
+- Double-check all connections before powering on
+- Never connect power pins directly together
+- Be gentle with components - they can be fragile
+
+STEP-BY-STEP WIRING INSTRUCTIONS:
+----------------------------------------
+You are adding: LED (Light Emitting Diode)
+
+WIRE CONNECTIONS TO MAKE:
+------------------------------
+CONNECTION 1:
+   From: Arduino pin 2 (Pin 2)
+   To:   LED (Light Emitting Diode) pin A (Anode (positive leg of LED))
+   Use:  RED wire (or any color you prefer)
+   Note: This connects to the LONG leg of the LED (positive)
+
+CONNECTION 2:
+   From: Arduino pin GND.1 (GND.1)
+   To:   LED (Light Emitting Diode) pin C (Cathode (negative leg of LED))
+   Use:  BLACK wire (or any color you prefer)
+   Note: This connects to the SHORT leg of the LED (negative)
+
+IMPORTANT - RESISTOR CONNECTIONS:
+-----------------------------------
+A 220 ohm resistor has been automatically added for safety.
+This resistor prevents too much current from damaging components.
+The resistor goes between the Arduino pin and the component.
+
+PLACEMENT TIPS:
+---------------
+- Place the LED (Light Emitting Diode) ABOVE your Arduino
+- Position it to the RIGHT side
+- Keep wire connections neat and organized
+- Use different colored wires for different types of connections
+- Leave some space between components for easy access
+
+TESTING YOUR CIRCUIT:
+-------------------------
+1. Double-check all connections match the instructions above
+2. Make sure no wires are touching that shouldn't be
+3. Connect power (USB cable to Arduino)
+4. The LED might not light up until you upload code
+5. This is normal - the LED needs to be programmed to turn on
+
+TROUBLESHOOTING:
+---------------
+- If something doesn't work, disconnect power immediately
+- Check that all wire connections are secure
+- Verify you're using the correct pins
+- Make sure components are oriented correctly
+- For LEDs: long leg goes to positive, short leg to negative
+
+CONGRATULATIONS!
+---------------
+You've completed building your circuit!
+Now you can write code to control your components.
+Check online tutorials for Arduino programming examples.
+
+PROGRAMMING RESOURCES:
+--------------------
+- Arduino IDE: https://www.arduino.cc/en/software
+- Arduino Tutorials: https://www.arduino.cc/en/Tutorial
+- Wokwi Simulator: https://wokwi.com (test your circuit online)
+
+======================================================================
+END OF STEP INSTRUCTIONS
+======================================================================
