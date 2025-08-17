@@ -214,6 +214,13 @@ for i, text in enumerate(json_texts, start=1):
     screenshot.save(screenshot_path)
     # ^ region = (x, y, width, height) — adjust for your monitor
     
+    # Text-to-speech announcement
+    try:
+        import subprocess
+        subprocess.run(['say', 'Screenshot taken!'], check=False)
+    except Exception:
+        pass  # Silently fail if TTS not available
+    
     print(f"   ✅ Step {i} completed: {screenshot_path}")
     time.sleep(1)  # Brief pause between steps
 

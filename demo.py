@@ -15,6 +15,7 @@ import os
 import json
 import re
 import math
+import time
 sys.path.append('.')
 
 from main import generate_circuit_diagram_json
@@ -373,6 +374,7 @@ def parse_text_input(text_input):
     # Find components in the text
     comp_counter = 1
     added_types = set()  # Track added component types to avoid duplicates
+    display_added = False  # Special flag for display components
     
     for keyword, comp_info in component_mappings.items():
         if keyword in text_lower:
@@ -384,8 +386,19 @@ def parse_text_input(text_input):
                     components.append(comp_info.copy())
                     added_types.add(comp_type)
             else:
+                # Special handling for display components - only add one display
+                if comp_type in ['board-ssd1306', 'board-ili9341-cap-touch']:
+                    if not display_added:
+                        comp = comp_info.copy()
+                        if comp['id'] != 'mcu':
+                            comp['id'] = f"comp{comp_counter}"
+                            comp_counter += 1
+                        components.append(comp)
+                        added_types.add(comp_type)
+                        display_added = True
+                        print(f"🖥️  Added display: {comp_type}")
                 # For other components, avoid duplicates of the same type
-                if comp_type not in added_types:
+                elif comp_type not in added_types:
                     comp = comp_info.copy()
                     if comp['id'] != 'mcu':
                         comp['id'] = f"comp{comp_counter}"
@@ -1012,6 +1025,222 @@ def generate_progressive_circuits(components):
     
     print(f"\nAll files generated successfully!")
     print(f"You can now open these files in Wokwi to see the progressive circuit building.")
+    
+    # Ask if user wants to automatically capture screenshots
+    print(f"\n" + "=" * 60)
+    print("AUTOMATIC SCREENSHOT CAPTURE")
+    print("=" * 60)
+    print("Would you like to automatically capture screenshots of these circuits in Wokwi?")
+    print("This will:")
+    print("• Open Wokwi in your browser")
+    print("• Load each circuit step automatically") 
+    print("• Capture screenshots of the progressive build")
+    print("• Save them as demo_step_1.png, demo_step_2.png, etc.")
+    print()
+    
+    while True:
+        auto_screenshot = input("Capture screenshots automatically? (y/n): ").strip().lower()
+        if auto_screenshot in ['y', 'yes']:
+            print("\nStarting automatic screenshot capture...")
+            run_progressive_screenshot_automation(generated_files)
+            break
+        elif auto_screenshot in ['n', 'no']:
+            print("\nSkipping automatic screenshots.")
+            print("You can run screenshots later by choosing option 5 from the main menu.")
+            break
+        else:
+            print("Please enter 'y' for yes or 'n' for no.")
+
+def run_progressive_screenshot_automation(generated_files):
+    """Run the proven macOS screenshot automation using generated files"""
+    import webbrowser
+    import os
+    
+    # Check for AutoGUI availability
+    autogui_available = False
+    try:
+        import pyautogui
+        import pyperclip
+        autogui_available = True
+    except ImportError:
+        pass
+    
+    if not autogui_available:
+        print("⚠️  Required packages not available!")
+        print("Install with: pip install pyautogui pyperclip")
+        print("Then choose option 5 from the main menu to run screenshot automation.")
+        return
+    
+    # Load the generated JSON files
+    demo_files = []
+    for filename in generated_files:
+        try:
+            with open(filename, 'r') as f:
+                content = f.read().strip()
+                demo_files.append(content)
+                print(f"✅ Loaded: {filename}")
+        except Exception as e:
+            print(f"⚠️  Could not read {filename}: {e}")
+            return
+    
+    # Create screenshots directory
+    screenshot_dir = "wokwi_screenshots"
+    os.makedirs(screenshot_dir, exist_ok=True)
+    
+    print(f"\nStarting Wokwi Progressive Circuit Automation")
+    print(f"Screenshots will be saved to: {screenshot_dir}/")
+    print(f"Processing {len(demo_files)} demo steps...")
+    print()
+    print("IMPORTANT SETUP INSTRUCTIONS:")
+    print("1. Open Wokwi in your browser: https://wokwi.com/projects/342032431249883731")
+    print("2. Make sure the browser window is visible and in focus")
+    print("3. Click on the 'diagram.json' tab in Wokwi")
+    print("4. You have 10 seconds to position your browser window...")
+    print()
+    
+    for i in range(10, 0, -1):
+        print(f"Starting automation in {i} seconds...")
+        time.sleep(1)
+    print("Starting automation now!")
+    
+    # Test clipboard functionality first
+    print("Testing clipboard functionality...")
+    test_text = "clipboard test 123"
+    pyperclip.copy(test_text)
+    time.sleep(0.1)
+    result = pyperclip.paste()
+    if result == test_text:
+        print("✅ Clipboard working correctly")
+    else:
+        print(f"❌ Clipboard issue: expected '{test_text}', got '{result}'")
+        print("   This may cause pasting problems...")
+    
+    # Test keyboard shortcuts
+    print("Testing keyboard shortcuts...")
+    print("   This will test Command+A and Command+V in 3 seconds...")
+    print("   Position a text editor or text field in focus...")
+    for i in range(3, 0, -1):
+        print(f"   {i}...")
+        time.sleep(1)
+    
+    # Test select all
+    print("   Testing Command+A (select all)...")
+    try:
+        pyautogui.hotkey('command', 'a')
+        time.sleep(0.5)
+        print("   ✅ Command+A worked")
+    except Exception as e:
+        print(f"   ❌ Command+A failed: {e}")
+    
+    # Test paste
+    print("   Testing Command+V (paste)...")
+    try:
+        pyautogui.hotkey('command', 'v')
+        time.sleep(0.5)
+        print("   ✅ Command+V worked")
+    except Exception as e:
+        print(f"   ❌ Command+V failed: {e}")
+    
+    print("   ✅ Keyboard shortcuts tested")
+    print()
+    
+    # Example coordinates (these will need to be adjusted for user's screen)
+    diagram_tab_pos = (297, 177)  # Click "diagram.json" tab
+    code_area_pos = (400, 400)    # Text editor area
+    empty_click_pos = (700, 300)  # Area on the right with the circuit view
+    
+    # Delay times
+    load_delay = 8       # seconds to wait for page load
+    update_delay = 4     # seconds to wait for diagram.json update to reflect
+    
+    # Step 1: Open Wokwi project
+    url = "https://wokwi.com/projects/342032431249883731"
+    webbrowser.open(url)
+    time.sleep(load_delay)
+    
+    for i, text in enumerate(demo_files, start=1):
+        print(f"Processing Step {i}/{len(demo_files)}...")
+        
+        # Step 2: Ensure browser is focused first (CRITICAL for macOS)
+        print(f"   Ensuring browser focus...")
+        pyautogui.click(diagram_tab_pos)  # Click tab first
+        time.sleep(0.3)
+        pyautogui.click(diagram_tab_pos)  # Click twice to be sure
+        time.sleep(0.5)
+    
+        # Step 3: Click diagram.json tab multiple times to ensure it's selected
+        print(f"   Selecting diagram.json tab...")
+        pyautogui.click(diagram_tab_pos)
+        time.sleep(0.3)
+    
+        # Step 4: Click in the text editor area and ensure it's focused
+        print(f"   Focusing text editor...")
+        pyautogui.click(code_area_pos)
+        time.sleep(0.3)
+        pyautogui.click(code_area_pos)  # Click twice for focus
+        time.sleep(0.5)
+        
+        # Step 5: Clear clipboard first, then copy new text
+        print(f"   Preparing JSON text ({len(text)} characters)...")
+        pyperclip.copy("")  # Clear clipboard
+        time.sleep(0.1)
+        pyperclip.copy(text)  # Copy our JSON
+        time.sleep(0.3)
+        
+        # Verify clipboard content
+        clipboard_content = pyperclip.paste()
+        if len(clipboard_content) < 50:
+            print(f"   WARNING: Clipboard content seems short: '{clipboard_content[:50]}...'")
+        else:
+            print(f"   ✅ Clipboard ready: {len(clipboard_content)} characters")
+        
+        # Step 6: Select all and replace (macOS-compatible method)
+        print(f"   Selecting all text...")
+        # Use triple-click first (more reliable), then Command+A as backup
+        pyautogui.click(code_area_pos, clicks=3)  # Triple-click selects all
+        time.sleep(0.3)
+        pyautogui.hotkey('command', 'a')  # Backup method
+        time.sleep(0.5)
+        
+        # Step 7: Paste the new JSON
+        print(f"   Pasting JSON into Wokwi...")
+        pyautogui.hotkey('command', 'v')
+        time.sleep(1.5)  # Give more time for paste to complete
+        print(f"   ✅ JSON pasted successfully")
+    
+        # Step 8: Wait for auto-update
+        print(f"   Waiting {update_delay}s for circuit to update...")
+        time.sleep(update_delay)
+    
+        # Step 9: Click on empty area (so text cursor not visible in screenshot)
+        pyautogui.click(empty_click_pos)
+        time.sleep(0.5)
+    
+        # Step 10: Screenshot of circuit area
+        screenshot_path = f"{screenshot_dir}/demo_step_{i}.png"
+        print(f"   Taking circuit screenshot: {screenshot_path}")
+        screenshot = pyautogui.screenshot(region=(672, 287, 1004, 860))  
+        screenshot.save(screenshot_path)
+        
+        # Text-to-speech announcement
+        try:
+            import subprocess
+            subprocess.run(['say', 'Screenshot taken!'], check=False)
+        except Exception:
+            pass  # Silently fail if TTS not available
+        
+        print(f"   ✅ Step {i} completed: {screenshot_path}")
+        time.sleep(1)  # Brief pause between steps
+    
+    print()
+    print("All screenshots captured successfully!")
+    print(f"Check the '{screenshot_dir}' folder for your progressive circuit images:")
+    for i in range(1, len(demo_files) + 1):
+        step_desc = "Arduino only" if i == 1 else f"Arduino + {i-1} component{'s' if i > 2 else ''}"
+        print(f"   • demo_step_{i}.png - {step_desc}")
+    print()
+    print("You now have visual documentation of your progressive circuit!")
+    print("Use these images for tutorials, presentations, or documentation.")
 
 def wokwi_autogui_mode():
     """Mode that uses existing demo_step_X.json files for Wokwi AutoGUI automation"""
@@ -1134,7 +1363,7 @@ def wokwi_autogui_mode():
     diagram_tab_pos = (297, 177)
     code_area_pos = (400, 400)
     empty_click_pos = (900, 300)
-    screenshot_region = (672, 287, 1004, 860)
+    screenshot_region = (672, 287, 1004, 660)
     
     print(f"\n🤖 Starting progressive automation...")
     
@@ -1171,6 +1400,13 @@ def wokwi_autogui_mode():
             screenshot_path = screenshot_dir / f"demo_step_{step_num}.png"
             print(f"   📸 Capturing: {screenshot_path}")
             pyautogui.screenshot(str(screenshot_path), region=screenshot_region)
+            
+            # Text-to-speech announcement
+            try:
+                import subprocess
+                subprocess.run(['say', 'Screenshot taken!'], check=False)
+            except Exception:
+                pass  # Silently fail if TTS not available
             
             print(f"   ✅ Step {step_num} completed!")
             

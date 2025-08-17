@@ -11,6 +11,8 @@ from flask_cors import CORS
 import json
 import os
 import sys
+import time
+import subprocess
 from pathlib import Path
 import tempfile
 import zipfile
@@ -182,9 +184,9 @@ def generate_from_components():
             "message": "Failed to generate circuit from components"
         }), 500
 
-@app.route('/api/progressive', methods=['POST'])
-def generate_progressive():
-    """Generate progressive circuit files and return as ZIP"""
+@app.route('/api/auto-demo', methods=['POST'])
+def auto_demo():
+    """Generate progressive circuits and automatically start screenshot automation"""
     try:
         data = request.get_json()
         
@@ -203,12 +205,145 @@ def generate_progressive():
                 "error": "No components could be parsed from description"
             }), 400
         
+        # Generate circuit JSON files directly using the same approach as demo.py
+        import threading
+        import subprocess
+        
+        print(f"\n🎯 Auto-Demo API: Generating progressive circuits...")
+        print(f"Components: {[comp['type'] for comp in components]}")
+        
+        # Generate the progressive circuits locally
+        mcu = None
+        other_components = []
+        
+        for comp in components:
+            comp_type = comp['type'].lower()
+            if any(x in comp_type for x in ['arduino', 'esp32', 'mega', 'nano']):
+                mcu = comp
+            else:
+                other_components.append(comp)
+        
+        if not mcu:
+            mcu = {"type": "wokwi-arduino-uno", "id": "mcu"}
+        
+        # Generate step files
+        steps = [
+            [mcu],  # Step 1: Just microcontroller
+            [mcu] + other_components[:1],  # Step 2: MCU + first component
+            [mcu] + other_components[:2],  # Step 3: MCU + first two components
+            [mcu] + other_components  # Step 4: All components
+        ]
+        
+        generated_files = []
+        for i, step_components in enumerate(steps, 1):
+            if len(step_components) > 0:
+                circuit_json = generate_circuit_diagram_json(
+                    parts=step_components,
+                    save_to_file=None
+                )
+                
+                filename = f"demo_step_{i}.json"
+                with open(filename, 'w') as f:
+                    f.write(circuit_json)
+                generated_files.append(filename)
+                print(f"✅ Generated {filename}")
+        
+        # Start screenshot automation in background using subprocess
+        def run_automation():
+            time.sleep(2)  # Give API time to respond
+            print("🚀 Starting AutoGUI screenshot automation via subprocess...")
+            try:
+                # Create a simple Python script to run the automation
+                automation_script = f"""
+import sys
+import os
+sys.path.append('.')
+os.chdir('{os.getcwd()}')
+
+from demo import run_progressive_screenshot_automation
+
+# The generated files are already saved to disk
+generated_files = {generated_files}
+print(f"🎯 AutoGUI: Using files: {{generated_files}}")
+
+run_progressive_screenshot_automation(generated_files)
+"""
+                # Write the script to a temporary file and run it
+                with open('temp_automation.py', 'w') as f:
+                    f.write(automation_script)
+                
+                subprocess.Popen([sys.executable, 'temp_automation.py'], cwd=os.getcwd())
+                print("✅ AutoGUI process started successfully")
+            except Exception as e:
+                print(f"❌ Failed to start AutoGUI: {e}")
+        
+        automation_thread = threading.Thread(target=run_automation)
+        automation_thread.daemon = True
+        automation_thread.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Progressive circuits generated and AutoGUI automation started",
+            "components_count": len(components),
+            "components": [comp['type'] for comp in components],
+            "automation_status": "started",
+            "files_generated": generated_files
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "message": "Failed to run auto-demo"
+        }), 500
+
+@app.route('/api/progressive', methods=['POST'])
+def generate_progressive():
+    """Generate progressive circuit files and return as ZIP"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'description' not in data:
+            return jsonify({
+                "error": "Missing 'description' field in request body"
+            }), 400
+        
+        description = data['description']
+        auto_screenshot = data.get('auto_screenshot', False)
+        
+        # Parse text input into components
+        components = parse_text_input(description)
+        
+        if not components:
+            return jsonify({
+                "error": "No components could be parsed from description"
+            }), 400
+        
         # Create temporary directory for files
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             
             # Generate progressive circuits
             generated_files = generate_progressive_circuits_api(components, temp_path)
+            
+            # Also generate local demo files if auto_screenshot is requested
+            if auto_screenshot:
+                # Import the demo functions
+                from demo import generate_progressive_circuits, run_progressive_screenshot_automation
+                
+                # Generate local demo files
+                print(f"\n🎯 API Request: Generating progressive circuits with AutoGUI automation...")
+                generate_progressive_circuits(components)
+                
+                # Start screenshot automation in background
+                import threading
+                def run_automation():
+                    time.sleep(1)  # Small delay to ensure API response is sent
+                    print("🚀 Starting AutoGUI screenshot automation...")
+                    run_progressive_screenshot_automation()
+                
+                automation_thread = threading.Thread(target=run_automation)
+                automation_thread.daemon = True
+                automation_thread.start()
             
             # Create ZIP file
             zip_path = temp_path / "progressive_circuits.zip"
@@ -217,12 +352,25 @@ def generate_progressive():
                     zipf.write(file_path, file_path.name)
             
             # Return the ZIP file
-            return send_file(
-                zip_path,
-                as_attachment=True,
-                download_name=f"progressive_circuits_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
-                mimetype='application/zip'
-            )
+            response_data = {
+                "success": True,
+                "auto_screenshot": auto_screenshot,
+                "message": "Progressive circuits generated successfully"
+            }
+            
+            if auto_screenshot:
+                response_data["automation"] = "AutoGUI screenshot automation started"
+            
+            # For auto_screenshot, return JSON response instead of file
+            if auto_screenshot:
+                return jsonify(response_data)
+            else:
+                return send_file(
+                    zip_path,
+                    as_attachment=True,
+                    download_name=f"progressive_circuits_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                    mimetype='application/zip'
+                )
     
     except Exception as e:
         return jsonify({
@@ -398,6 +546,8 @@ if __name__ == '__main__':
     print("  POST /api/generate    - Generate single circuit")
     print("  POST /api/components  - Generate from component list")
     print("  POST /api/progressive - Generate progressive circuits (ZIP)")
+    print("  POST /api/auto-demo   - Generate circuits + AutoGUI automation")
+    print("  POST /api/parse       - Parse text to components")
     print("  POST /api/parse       - Parse text to components")
     
     app.run(host='0.0.0.0', port=port, debug=debug)
